@@ -11,52 +11,61 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     min-height: 100vh;
+    overflow: hidden;
     font-family: 'Courier New', monospace;
+  }
+  #game-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform-origin: top center;
   }
   h1 { color: #ff6b35; font-size: 26px; letter-spacing: 6px; margin-bottom: 5px; text-shadow: 0 0 10px #ff6b3588; }
   canvas { border: 3px solid #ff6b35; box-shadow: 0 0 30px #ff6b3544; display: block; }
   #hud { display:flex; justify-content:space-between; width:800px; padding:5px 4px; color:#eee; font-size:13px; }
   #controls { color:#667; font-size:11px; margin-top:3px; width:800px; text-align:center; }
-  #touch-controls { display:none; justify-content:space-between; align-items:flex-end; width:800px; padding:6px 4px 2px; }
-  #touch-controls.visible { display:flex; }
-  #dpad { display:grid; grid-template-columns:60px 60px 60px; grid-template-rows:52px 52px; gap:4px; }
-  #btn-up    { grid-column:2; grid-row:1; }
-  #btn-left  { grid-column:1; grid-row:2; }
-  #btn-down  { grid-column:2; grid-row:2; }
-  #btn-right { grid-column:3; grid-row:2; }
-  #action-btns { display:flex; gap:10px; align-items:flex-end; }
-  .tbtn { background:rgba(255,107,53,0.2); border:2px solid rgba(255,107,53,0.55); border-radius:14px;
-          color:#ff6b35; font-size:22px; font-weight:bold; touch-action:none; -webkit-user-select:none;
-          display:flex; align-items:center; justify-content:center; width:60px; height:52px; }
-  .tbtn:active { background:rgba(255,107,53,0.45); }
-  #btn-jump  { width:88px; height:72px; font-size:14px; letter-spacing:1px; }
-  #btn-poo   { width:60px; height:60px; font-size:26px; }
+  /* ── Touch overlay (fixed in viewport, independent of canvas scale) ── */
+  #joy-zone { display:none; position:fixed; bottom:0; left:0; width:220px; height:220px;
+              touch-action:none; z-index:10; }
+  #joy-base { display:none; position:absolute; width:120px; height:120px; border-radius:50%;
+              background:rgba(255,107,53,0.12); border:2px solid rgba(255,107,53,0.45);
+              transform:translate(-50%,-50%); pointer-events:none; }
+  #joy-knob { position:absolute; width:56px; height:56px; border-radius:50%;
+              background:rgba(255,107,53,0.75); top:60px; left:60px;
+              transform:translate(-50%,-50%); transition:none; }
+  #act-zone { display:none; position:fixed; bottom:18px; right:18px; flex-direction:column;
+              align-items:flex-end; gap:12px; z-index:10; touch-action:none; }
+  .tbtn { background:rgba(255,107,53,0.18); border:2px solid rgba(255,107,53,0.6);
+          border-radius:50%; color:#ff6b35; font-weight:bold; touch-action:none;
+          -webkit-user-select:none; display:flex; align-items:center; justify-content:center; }
+  .tbtn:active, .tbtn.pressed { background:rgba(255,107,53,0.5); }
+  #btn-jump { width:96px; height:96px; font-size:15px; letter-spacing:1px; border-radius:50%; }
+  #btn-poo  { width:68px; height:68px; font-size:28px; border-radius:50%; }
 </style>
 </head>
 <body>
-<h1>🐼 PANDA KONG 🏴‍☠️</h1>
-<canvas id="c" width="800" height="690"></canvas>
-<div id="hud">
-  <span id="scoreEl">SCORE: 0</span>
-  <span id="rankEl">BAMBOO BABY</span>
-  <span id="hiEl">HI: 0</span>
-  <span id="levelEl">LV 1</span>
-  <span id="livesEl">❤ ❤ ❤</span>
+<div id="game-wrap">
+  <h1>🐼 PANDA KONG 🏴‍☠️</h1>
+  <canvas id="c" width="800" height="690"></canvas>
+  <div id="hud">
+    <span id="scoreEl">SCORE: 0</span>
+    <span id="rankEl">BAMBOO BABY</span>
+    <span id="hiEl">HI: 0</span>
+    <span id="levelEl">LV 1</span>
+    <span id="livesEl">❤ ❤ ❤</span>
+  </div>
+  <div id="controls">← → Move &nbsp;|&nbsp; ↑ ↓ Climb ladder &nbsp;|&nbsp; SPACE Jump &nbsp;|&nbsp; E Drop 💩 (destroys one log!) &nbsp;|&nbsp; Ladders zigzag!</div>
 </div>
-<div id="controls">← → Move &nbsp;|&nbsp; ↑ ↓ Climb ladder &nbsp;|&nbsp; SPACE Jump &nbsp;|&nbsp; E Drop 💩 (destroys one log!) &nbsp;|&nbsp; Ladders zigzag!</div>
-<div id="touch-controls">
-  <div id="dpad">
-    <button class="tbtn" id="btn-up">↑</button>
-    <button class="tbtn" id="btn-left">←</button>
-    <button class="tbtn" id="btn-down">↓</button>
-    <button class="tbtn" id="btn-right">→</button>
-  </div>
-  <div id="action-btns">
-    <button class="tbtn" id="btn-poo">💩</button>
-    <button class="tbtn" id="btn-jump">JUMP</button>
-  </div>
+<!-- Joystick zone (bottom-left, fixed to viewport, touch only) -->
+<div id="joy-zone">
+  <div id="joy-base"><div id="joy-knob"></div></div>
+</div>
+<!-- Action buttons (bottom-right, fixed to viewport, touch only) -->
+<div id="act-zone">
+  <button class="tbtn" id="btn-poo">💩</button>
+  <button class="tbtn" id="btn-jump">JUMP</button>
 </div>
 
 <script>
@@ -272,30 +281,94 @@ addEventListener('keyup', e => { K[e.code]=false; });
 function clearKP() { for (let k in KP) delete KP[k]; typedKey=null; }
 
 // ─── TOUCH CONTROLS ────────────────────────────────────────────────────────
+// ─── SCALE GAME TO FIT VIEWPORT ─────────────────────────────────────────────
+function scaleGame() {
+  const WRAP_W = 806, WRAP_H = 765; // canvas 800×690 + hud + h1
+  const s = Math.min(window.innerWidth / WRAP_W, window.innerHeight / WRAP_H, 1);
+  const wrap = document.getElementById('game-wrap');
+  wrap.style.transform = `scale(${s})`;
+  // Collapse the negative space caused by scaling so body doesn't scroll
+  wrap.style.marginBottom = `-${WRAP_H * (1 - s)}px`;
+}
+scaleGame();
+window.addEventListener('resize', scaleGame);
+
 if (isTouch) {
-  document.getElementById('touch-controls').classList.add('visible');
   document.getElementById('controls').style.display = 'none';
 
-  function bindHold(id, code) {
-    const el = document.getElementById(id);
-    el.addEventListener('touchstart',  e => { e.preventDefault(); K[code]=true; }, {passive:false});
-    el.addEventListener('touchend',    e => { e.preventDefault(); K[code]=false; }, {passive:false});
-    el.addEventListener('touchcancel', () => { K[code]=false; });
+  // Show fixed-position touch controls
+  const joyZone = document.getElementById('joy-zone');
+  const joyBase = document.getElementById('joy-base');
+  const joyKnob = document.getElementById('joy-knob');
+  const actZone = document.getElementById('act-zone');
+  joyZone.style.display = 'block';
+  actZone.style.display = 'flex';
+
+  // ── Joystick (dynamic base – appears at first touch) ──────────────────────
+  const JOY_MAX  = 50;  // max knob travel from base centre (px)
+  const JOY_DEAD = 10;  // dead zone radius before input registers (px)
+  let joyId = null, joyBX = 0, joyBY = 0;
+
+  function joyDir(dx, dy) {
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    K['ArrowLeft']  = dist > JOY_DEAD && dx < -JOY_DEAD;
+    K['ArrowRight'] = dist > JOY_DEAD && dx >  JOY_DEAD;
+    K['ArrowUp']    = dist > JOY_DEAD && dy < -JOY_DEAD;
+    K['ArrowDown']  = dist > JOY_DEAD && dy >  JOY_DEAD;
   }
+  function joyReset() {
+    joyId = null;
+    joyBase.style.display = 'none';
+    K['ArrowLeft'] = K['ArrowRight'] = K['ArrowUp'] = K['ArrowDown'] = false;
+  }
+
+  joyZone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    joyId = t.identifier;
+    // Place base at touch point, relative to joy-zone (which is at bottom:0,left:0)
+    const rect = joyZone.getBoundingClientRect();
+    joyBX = t.clientX - rect.left;
+    joyBY = t.clientY - rect.top;
+    joyBase.style.display = 'block';
+    joyBase.style.left = joyBX + 'px';
+    joyBase.style.top  = joyBY + 'px';
+    joyKnob.style.left = '60px';
+    joyKnob.style.top  = '60px';
+    // Tap to advance screens
+    if (state !== 'playing') KP['Space'] = true;
+  }, {passive:false});
+
+  joyZone.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joyId) continue;
+      const rect = joyZone.getBoundingClientRect();
+      let dx = (t.clientX - rect.left) - joyBX;
+      let dy = (t.clientY - rect.top)  - joyBY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > JOY_MAX) { dx = dx/dist*JOY_MAX; dy = dy/dist*JOY_MAX; }
+      // joy-base is 120px; knob centre at 50%/50% = 60px from edge
+      joyKnob.style.left = (60 + dx) + 'px';
+      joyKnob.style.top  = (60 + dy) + 'px';
+      joyDir(dx, dy);
+    }
+  }, {passive:false});
+
+  joyZone.addEventListener('touchend',    e => { for (const t of e.changedTouches) if (t.identifier===joyId) joyReset(); }, {passive:false});
+  joyZone.addEventListener('touchcancel', e => { for (const t of e.changedTouches) if (t.identifier===joyId) joyReset(); }, {passive:false});
+
+  // ── Action buttons ─────────────────────────────────────────────────────────
   function bindTap(id, code) {
     const el = document.getElementById(id);
     el.addEventListener('touchstart',  e => { e.preventDefault(); KP[code]=true; K[code]=true; }, {passive:false});
     el.addEventListener('touchend',    e => { e.preventDefault(); K[code]=false; }, {passive:false});
     el.addEventListener('touchcancel', () => { K[code]=false; });
   }
-  bindHold('btn-left',  'ArrowLeft');
-  bindHold('btn-right', 'ArrowRight');
-  bindHold('btn-up',    'ArrowUp');
-  bindHold('btn-down',  'ArrowDown');
   bindTap('btn-jump', 'Space');
   bindTap('btn-poo',  'KeyE');
 
-  // Tap canvas to advance title/dead/win/gameover screens
+  // Tap canvas (outside joy-zone) to advance screens
   C.addEventListener('touchstart', e => {
     e.preventDefault();
     if (state !== 'playing') KP['Space'] = true;
