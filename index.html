@@ -95,10 +95,18 @@
   <button class="tbtn" id="btn-poo">💩</button>
   <button class="tbtn" id="btn-jump">JUMP</button>
 </div>
-<!-- Hidden input to summon native keyboard for name entry on touch -->
-<input id="name-input" type="text" maxlength="3"
-  autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
-  style="position:fixed;opacity:0;top:0;left:0;width:1px;height:1px;pointer-events:none;border:none;outline:none;">
+<!-- Name entry overlay for touch devices -->
+<div id="name-overlay" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.85);
+     flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:'Courier New',monospace;">
+  <div style="color:#ffd700;font-size:22px;font-weight:bold;letter-spacing:3px;">ENTER YOUR INITIALS</div>
+  <input id="name-input" type="text" maxlength="3"
+    autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+    style="font:bold 52px 'Courier New',monospace;width:190px;text-align:center;letter-spacing:20px;
+           background:#111830;color:#ffd700;border:3px solid #ffd700;padding:10px 8px;
+           border-radius:6px;outline:none;text-transform:uppercase;">
+  <button id="name-ok" style="font:bold 18px 'Courier New',monospace;background:#ff6b35;color:#fff;
+          border:none;padding:12px 40px;border-radius:8px;letter-spacing:2px;cursor:pointer;">OK</button>
+</div>
 <!-- Portrait rotation prompt -->
 <div id="rotate-msg">
   <div class="icon">📱</div>
@@ -274,14 +282,21 @@ function submitScore(name) {
 function startNameEntry() {
   nameLetters=['A','A','A']; namePos=0; nameBlink=0; state='namentry';
   if (isTouch) {
+    const ov = document.getElementById('name-overlay');
     const inp = document.getElementById('name-input');
     inp.value = '';
-    inp.focus();
+    ov.style.display = 'flex';
+    // Small delay so the overlay is painted before focus — iOS needs this
+    setTimeout(() => inp.focus(), 50);
   }
 }
 function endNameEntry(name) {
+  if (isTouch) {
+    const ov = document.getElementById('name-overlay');
+    document.getElementById('name-input').blur();
+    ov.style.display = 'none';
+  }
   submitScore(name); sfxNameDone(); state='gameover';
-  if (isTouch) document.getElementById('name-input').blur();
 }
 
 // ─── STATE ─────────────────────────────────────────────────────────────────
@@ -341,8 +356,9 @@ const GAME_H_TOUCH   = 722; // no h1 on touch: canvas 690 + hud 32
 const GAME_H_DESKTOP = 762; // h1 36 + margin 5 + canvas 690 + hud 31
 
 function scaleGame() {
-  // Don't rescale while the keyboard is open for name entry
-  if (document.activeElement && document.activeElement.id === 'name-input') return;
+  // Don't rescale while the name entry overlay is open (keyboard would be up)
+  const _ov = document.getElementById('name-overlay');
+  if (_ov && _ov.style.display === 'flex') return;
   const GAME_H = isTouch ? GAME_H_TOUCH : GAME_H_DESKTOP;
   // visualViewport gives the true visible area on Android (excludes URL bar,
   // keyboard, etc.). Falls back to window dimensions on desktop.
@@ -461,8 +477,13 @@ if (isTouch) {
     if (state !== 'playing') KP['Space'] = true;
   }, {passive:false});
 
-  // Native keyboard name entry: user just types up to 3 letters
+  // Name overlay: input + OK button
   const nameInp = document.getElementById('name-input');
+  function submitOverlayName() {
+    if (state !== 'namentry') return;
+    const val = nameInp.value.toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'A').slice(0, 3);
+    endNameEntry(val);
+  }
   nameInp.addEventListener('input', () => {
     if (state !== 'namentry') return;
     const val = nameInp.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
@@ -472,12 +493,12 @@ if (isTouch) {
     if (val.length >= 3) endNameEntry(val);
   });
   nameInp.addEventListener('keydown', e => {
-    if (state !== 'namentry') return;
-    if (e.key === 'Enter') {
-      const val = nameInp.value.toUpperCase().replace(/[^A-Z]/g, '') || 'AAA';
-      endNameEntry(val.slice(0, 3).padEnd(3, 'A'));
-    }
+    if (e.key === 'Enter') submitOverlayName();
   });
+  document.getElementById('name-ok').addEventListener('touchstart', e => {
+    e.preventDefault();
+    submitOverlayName();
+  }, {passive:false});
 }
 
 // ─── HUD ───────────────────────────────────────────────────────────────────
