@@ -12,7 +12,9 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    min-height: 100vh;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh; /* dynamic viewport: excludes browser chrome on Android */
     overflow: hidden;
     font-family: 'Courier New', monospace;
   }
@@ -311,18 +313,32 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { K[e.code]=false; });
 function clearKP() { for (let k in KP) delete KP[k]; typedKey=null; }
 
-// ─── TOUCH CONTROLS ────────────────────────────────────────────────────────
-// ─── SCALE GAME TO FIT VIEWPORT ─────────────────────────────────────────────
+// ─── SCALE GAME TO FIT VIEWPORT ──────────────────────────────────────────────
+// On touch: hide the title to maximise canvas space
+if (isTouch) {
+  const h1 = document.querySelector('h1');
+  if (h1) h1.style.display = 'none';
+}
+
 function scaleGame() {
-  const WRAP_W = 806, WRAP_H = 765; // canvas 800×690 + hud + h1
-  // On touch devices reserve 130px at bottom for the joystick/action buttons
-  const bottomReserve = isTouch ? 130 : 0;
-  const avH = window.innerHeight - bottomReserve;
-  const s = Math.min(window.innerWidth / WRAP_W, avH / WRAP_H, 1);
   const wrap = document.getElementById('game-wrap');
+  // Reset first so we measure the natural (unscaled) size
+  wrap.style.transform = 'none';
+  wrap.style.marginBottom = '';
+  const nW = wrap.offsetWidth  || 806;
+  const nH = wrap.offsetHeight || 730;
+  // Touch buttons are position:fixed, so they overlay the canvas —
+  // no layout space needed. Just a small pad so bottom of canvas
+  // isn't fully hidden behind them.
+  const pad = isTouch ? 20 : 0;
+  const s = Math.min(
+    window.innerWidth        / nW,
+    (window.innerHeight - pad) / nH
+  );
   wrap.style.transform = `scale(${s})`;
-  // Collapse negative space so body doesn't scroll
-  wrap.style.marginBottom = `-${WRAP_H * (1 - s)}px`;
+  wrap.style.transformOrigin = 'top center';
+  // Collapse the empty space left by downscaling
+  wrap.style.marginBottom = `-${nH * (1 - s)}px`;
 }
 scaleGame();
 window.addEventListener('resize', scaleGame);
