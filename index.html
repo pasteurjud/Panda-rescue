@@ -374,10 +374,17 @@ if (isTouch) {
 
   function joyDir(dx, dy) {
     const dist = Math.sqrt(dx*dx + dy*dy);
-    K['ArrowLeft']  = dist > JOY_DEAD && dx < -JOY_DEAD;
-    K['ArrowRight'] = dist > JOY_DEAD && dx >  JOY_DEAD;
-    K['ArrowUp']    = dist > JOY_DEAD && dy < -JOY_DEAD;
-    K['ArrowDown']  = dist > JOY_DEAD && dy >  JOY_DEAD;
+    const nL = dist > JOY_DEAD && dx < -JOY_DEAD;
+    const nR = dist > JOY_DEAD && dx >  JOY_DEAD;
+    const nU = dist > JOY_DEAD && dy < -JOY_DEAD;
+    const nD = dist > JOY_DEAD && dy >  JOY_DEAD;
+    // Edge-trigger KP so namentry letter cycling works with the joystick
+    if (nL && !K['ArrowLeft'])  KP['ArrowLeft']  = true;
+    if (nR && !K['ArrowRight']) KP['ArrowRight'] = true;
+    if (nU && !K['ArrowUp'])    KP['ArrowUp']    = true;
+    if (nD && !K['ArrowDown'])  KP['ArrowDown']  = true;
+    K['ArrowLeft'] = nL; K['ArrowRight'] = nR;
+    K['ArrowUp']   = nU; K['ArrowDown']  = nD;
   }
   function joyReset() {
     joyId = null;
@@ -1230,7 +1237,7 @@ function loop() {
       if (KP['ArrowLeft']  && namePos>0) { namePos--; sfxBlip(); }
       if (KP['ArrowRight'] && namePos<2) { namePos++; sfxBlip(); }
       if (KP['Backspace']  && namePos>0) { namePos--; nameLetters[namePos]='A'; sfxBlip(); }
-      if (KP['Enter']) {
+      if (KP['Enter'] || KP['Space']) {
         if (namePos<2) { namePos++; sfxBlip(); }
         else { submitScore(nameLetters.join('')); sfxNameDone(); state='gameover'; }
       }
