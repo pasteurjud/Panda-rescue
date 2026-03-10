@@ -320,28 +320,41 @@ if (isTouch) {
   if (h1) h1.style.display = 'none';
 }
 
+// Known natural game dimensions (canvas 800×690 + HUD ~30px)
+const GAME_W = 800;
+const GAME_H_TOUCH   = 722; // no h1 on touch: canvas 690 + hud 32
+const GAME_H_DESKTOP = 762; // h1 36 + margin 5 + canvas 690 + hud 31
+
 function scaleGame() {
+  const GAME_H = isTouch ? GAME_H_TOUCH : GAME_H_DESKTOP;
+  // visualViewport gives the true visible area on Android (excludes URL bar,
+  // keyboard, etc.). Falls back to window dimensions on desktop.
+  const vw = (window.visualViewport || window).width  || window.innerWidth;
+  const vh = (window.visualViewport || window).height || window.innerHeight;
+  const s = Math.min(vw / GAME_W, vh / GAME_H);
   const wrap = document.getElementById('game-wrap');
-  // Reset first so we measure the natural (unscaled) size
-  wrap.style.transform = 'none';
-  wrap.style.marginBottom = '';
-  const nW = wrap.offsetWidth  || 806;
-  const nH = wrap.offsetHeight || 730;
-  // Touch buttons are position:fixed, so they overlay the canvas —
-  // no layout space needed. Just a small pad so bottom of canvas
-  // isn't fully hidden behind them.
-  const pad = isTouch ? 20 : 0;
-  const s = Math.min(
-    window.innerWidth        / nW,
-    (window.innerHeight - pad) / nH
-  );
   wrap.style.transform = `scale(${s})`;
   wrap.style.transformOrigin = 'top center';
-  // Collapse the empty space left by downscaling
-  wrap.style.marginBottom = `-${nH * (1 - s)}px`;
+  // Collapse the blank space below the scaled-down content
+  wrap.style.marginBottom = `-${GAME_H * (1 - s)}px`;
+
+  // Scale the fixed touch buttons to stay proportional to the game
+  if (isTouch) {
+    const bs = Math.max(0.55, s); // don't shrink buttons below 55% — still tappable
+    document.getElementById('btn-jump').style.transform = `scale(${bs})`;
+    document.getElementById('btn-poo').style.transform  = `scale(${bs})`;
+    document.getElementById('joy-zone').style.transform = `scale(${bs})`;
+    document.getElementById('joy-zone').style.transformOrigin = 'bottom left';
+  }
 }
-scaleGame();
-window.addEventListener('resize', scaleGame);
+
+// Run once after first paint so layout is settled, then on every resize
+requestAnimationFrame(scaleGame);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', scaleGame);
+} else {
+  window.addEventListener('resize', scaleGame);
+}
 
 if (isTouch) {
   document.getElementById('controls').style.display = 'none';
