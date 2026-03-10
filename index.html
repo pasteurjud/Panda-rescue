@@ -219,10 +219,22 @@ function maxLogsOnScreen()  { return Math.min(20, 6 + Math.floor(difficulty * 1.
 const RANKS = ['BAMBOO BABY','LOG DODGER','PANDA PRO','STORM CLIMBER','TYPHOON MASTER','KONG LEGEND'];
 function diffRank() { return RANKS[Math.min(difficulty-1, RANKS.length-1)]; }
 
-// ─── HI SCORE ────────────────────────────────────────────────────────────────
-let scores = JSON.parse(localStorage.getItem('pandakong_scores') || '[]');
-let hiScore = scores.length ? scores[0].score : 0;
+// ─── HI SCORE (Firebase Realtime Database) ───────────────────────────────────
+const FB = 'https://panda-rescue-40ad7-default-rtdb.europe-west1.firebasedatabase.app/scores';
+let scores = [];
+let hiScore = 0;
 let nameLetters, namePos, nameBlink, justAdded;
+
+async function loadScores() {
+  try {
+    const r = await fetch(FB + '.json?orderBy="score"&limitToLast=10');
+    const data = await r.json();
+    scores = data ? Object.values(data).sort((a,b) => b.score - a.score) : [];
+    hiScore = scores.length ? scores[0].score : 0;
+    updateHUD();
+  } catch(e) { /* offline — scores stay empty */ }
+}
+loadScores();
 
 // ─── WEB AUDIO ───────────────────────────────────────────────────────────────
 let audioCtx = null;
@@ -275,9 +287,14 @@ function submitScore(name) {
   scores.push(justAdded);
   scores.sort((a,b) => b.score - a.score);
   if (scores.length > 10) scores.length = 10;
-  if (!scores.includes(justAdded)) justAdded = null; // fell outside top 10
-  localStorage.setItem('pandakong_scores', JSON.stringify(scores.map(({name,score})=>({name,score}))));
+  if (!scores.includes(justAdded)) justAdded = null;
   hiScore = scores[0].score; updateHUD();
+  // Push to Firebase (fire-and-forget; re-fetch to sync global board)
+  fetch(FB + '.json', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, score})
+  }).then(() => loadScores()).catch(() => {});
 }
 function startNameEntry() {
   nameLetters=['A','A','A']; namePos=0; nameBlink=0; state='namentry';
