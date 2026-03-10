@@ -43,6 +43,32 @@
   .tbtn:active, .tbtn.pressed { background:rgba(255,107,53,0.5); }
   #btn-jump { width:96px; height:96px; font-size:15px; letter-spacing:1px; border-radius:50%; }
   #btn-poo  { width:68px; height:68px; font-size:28px; border-radius:50%; }
+  /* ── Portrait warning overlay ── */
+  #rotate-msg {
+    display: none;
+    position: fixed; inset: 0; z-index: 999;
+    background: #0d1b2a;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #ff6b35;
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    gap: 20px;
+  }
+  #rotate-msg .icon { font-size: 72px; animation: spin 2s linear infinite; }
+  #rotate-msg p { font-size: 18px; letter-spacing: 2px; line-height: 1.6; }
+  @keyframes spin {
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(-90deg); }
+    50%  { transform: rotate(-90deg); }
+    75%  { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+  }
+  @media (orientation: portrait) and (max-width: 900px) {
+    #rotate-msg { display: flex; }
+    #game-wrap, #joy-zone, #act-zone { visibility: hidden; }
+  }
 </style>
 </head>
 <body>
@@ -66,6 +92,11 @@
 <div id="act-zone">
   <button class="tbtn" id="btn-poo">💩</button>
   <button class="tbtn" id="btn-jump">JUMP</button>
+</div>
+<!-- Portrait rotation prompt -->
+<div id="rotate-msg">
+  <div class="icon">📱</div>
+  <p>ROTATE YOUR DEVICE<br>FOR THE BEST EXPERIENCE</p>
 </div>
 
 <script>
@@ -284,10 +315,13 @@ function clearKP() { for (let k in KP) delete KP[k]; typedKey=null; }
 // ─── SCALE GAME TO FIT VIEWPORT ─────────────────────────────────────────────
 function scaleGame() {
   const WRAP_W = 806, WRAP_H = 765; // canvas 800×690 + hud + h1
-  const s = Math.min(window.innerWidth / WRAP_W, window.innerHeight / WRAP_H, 1);
+  // On touch devices reserve 130px at bottom for the joystick/action buttons
+  const bottomReserve = isTouch ? 130 : 0;
+  const avH = window.innerHeight - bottomReserve;
+  const s = Math.min(window.innerWidth / WRAP_W, avH / WRAP_H, 1);
   const wrap = document.getElementById('game-wrap');
   wrap.style.transform = `scale(${s})`;
-  // Collapse the negative space caused by scaling so body doesn't scroll
+  // Collapse negative space so body doesn't scroll
   wrap.style.marginBottom = `-${WRAP_H * (1 - s)}px`;
 }
 scaleGame();
